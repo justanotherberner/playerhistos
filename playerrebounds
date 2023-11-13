@@ -1,0 +1,182 @@
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+from nba_api.stats.endpoints import playergamelog
+from nba_api.stats.library.parameters import SeasonAll
+
+def organize_directory(output_directory, player_name, season, stat):
+    player_directory = os.path.join(output_directory, player_name)
+    season_directory = os.path.join(player_directory, season)
+    stat_directory = os.path.join(season_directory, stat)
+
+    os.makedirs(player_directory, exist_ok=True)
+    os.makedirs(season_directory, exist_ok=True)
+    os.makedirs(stat_directory, exist_ok=True)
+
+    return stat_directory
+
+# Damian Lillard's player ID
+player_id = 203081
+player_name = 'lillard'
+
+# Define the seasons of interest, including Damian Lillard's rookie season (2012-13) up to the current season (2023-24)
+seasons = ['2012-13', '2013-14', '2014-15', '2015-16', '2016-17', '2017-18', '2018-19', '2019-20', '2020-21', '2021-22', '2022-23', '2023-24']
+
+# Define the output directory
+output_directory = r'C:\Users\chris\Documents\nba_project'
+
+# Function to add mean annotations with shaded regions for one and two standard deviations
+def add_mean_with_std(data, color, label, season_type):
+    mean_value = data.mean()
+    std_value = data.std()
+
+    plt.axvline(mean_value, color=color, linestyle='dashed', linewidth=2, label=f'{label} Mean: {mean_value:.2f} ({season_type})')
+    plt.axvspan(mean_value - std_value, mean_value + std_value, alpha=0.025, color=color, label=f'{label} ± 1 STD')
+    plt.axvspan(mean_value - 2 * std_value, mean_value + 2 * std_value, alpha=0.0125, color=color, label=f'{label} ± 2 STD')
+
+# Loop through each season
+for season in seasons:
+    try:
+        # Regular season
+        regular_season_logs = playergamelog.PlayerGameLog(player_id=player_id, season=season)
+        regular_season_data = regular_season_logs.get_data_frames()[0]
+
+        # Check if there is data available for the regular season
+        if not regular_season_data.empty:
+            # Create a histogram for regular season rebounds
+            plt.figure(figsize=(12, 6))
+            plt.hist(regular_season_data['REB'], bins=np.arange(min(regular_season_data['REB']), max(regular_season_data['REB']) + 2) - 0.5, color='blue', alpha=0.7, rwidth=0.8)
+            add_mean_with_std(regular_season_data['REB'], 'red', f'Regular Season {season}', 'Regular Season')
+            plt.title(f'Damian Lillard Regular Season Game Log Rebounds Histogram ({season})')
+            plt.xlabel('Rebounds')
+            plt.ylabel('Frequency')
+            plt.xticks(np.arange(0, max(regular_season_data['REB']) + 1, 1))
+            plt.legend()
+
+            # Organize directory and save the figure
+            stat_directory = organize_directory(output_directory, player_name, season, 'rebounds')
+            save_path = os.path.join(stat_directory, f'{player_name}_{season}_regular_season_rebounds_histogram.png')
+            plt.savefig(save_path)
+
+            # Display the plot
+            plt.show()
+        else:
+            print(f'No regular season data available for {season}.')
+
+        # Playoffs
+        playoff_logs = playergamelog.PlayerGameLog(player_id=player_id, season=season, season_type_all_star='Playoffs')
+        playoff_data = playoff_logs.get_data_frames()[0]
+
+        # Check if there is playoff data available
+        if not playoff_data.empty:
+            # Create a histogram for playoff rebounds
+            plt.figure(figsize=(12, 6))
+            plt.hist(playoff_data['REB'], bins=np.arange(min(playoff_data['REB']), max(playoff_data['REB']) + 2) - 0.5, color='green', alpha=0.7, rwidth=0.8)
+            add_mean_with_std(playoff_data['REB'], 'purple', f'Playoffs {season}', 'Playoffs')
+            plt.title(f'Damian Lillard Playoff Game Log Rebounds Histogram ({season})')
+            plt.xlabel('Rebounds')
+            plt.ylabel('Frequency')
+            plt.xticks(np.arange(0, max(playoff_data['REB']) + 1, 1))
+            plt.legend()
+
+            # Organize directory and save the figure
+            stat_directory = organize_directory(output_directory, player_name, season, 'rebounds')
+            save_path = os.path.join(stat_directory, f'{player_name}_{season}_playoffs_rebounds_histogram.png')
+            plt.savefig(save_path)
+
+            # Display the plot
+            plt.show()
+
+            # Create a combined histogram with playoffs bars above regular season bars
+            plt.figure(figsize=(12, 6))
+            plt.hist([regular_season_data['REB'], playoff_data['REB']], bins=np.arange(min(min(regular_season_data['REB']), min(playoff_data['REB'])), max(max(regular_season_data['REB']), max(playoff_data['REB'])) + 2) - 0.5,
+                    color=['blue', 'green'], alpha=0.7, rwidth=0.8, label=[f'Regular Season {season}', f'Playoffs {season}'], stacked=True)
+            add_mean_with_std(regular_season_data['REB'], 'red', f'Regular Season {season}', 'Regular Season')
+            add_mean_with_std(playoff_data['REB'], 'purple', f'Playoffs {season}', 'Playoffs')
+            plt.title(f'Damian Lillard Game Log Rebounds Histogram (Combined - {season})')
+            plt.xlabel('Rebounds')
+            plt.ylabel('Frequency')
+            plt.xticks(np.arange(0, max(max(regular_season_data['REB']), max(playoff_data['REB'])) + 1, 1))
+            plt.legend()
+
+            # Organize directory and save the figure
+            stat_directory = organize_directory(output_directory, player_name, season, 'rebounds')
+            save_path = os.path.join(stat_directory, f'{player_name}_{season}_combined_rebounds_histogram.png')
+            plt.savefig(save_path)
+
+            # Display the plot
+            plt.show()
+        else:
+            print(f'No playoff data available for {season}.')
+
+    except Exception as e:
+        print(f'Error processing {season}: {e}')
+
+# Career histograms
+try:
+    # Regular season
+    career_regular_season_logs = playergamelog.PlayerGameLog(player_id=player_id, season=SeasonAll.all)
+    career_regular_season_data = career_regular_season_logs.get_data_frames()[0]
+
+    # Playoffs
+    career_playoff_logs = playergamelog.PlayerGameLog(player_id=player_id, season=SeasonAll.all, season_type_all_star='Playoffs')
+    career_playoff_data = career_playoff_logs.get_data_frames()[0]
+
+    # Create a histogram for career regular season rebounds
+    plt.figure(figsize=(12, 6))
+    plt.hist(career_regular_season_data['REB'], bins=np.arange(min(career_regular_season_data['REB']), max(career_regular_season_data['REB']) + 2) - 0.5, color='blue', alpha=0.7, rwidth=0.8)
+    add_mean_with_std(career_regular_season_data['REB'], 'red', 'Career Regular Season', 'Regular Season')
+    plt.title('Damian Lillard Career Regular Season Game Log Rebounds Histogram')
+    plt.xlabel('Rebounds')
+    plt.ylabel('Frequency')
+    plt.xticks(np.arange(0, max(career_regular_season_data['REB']) + 1, 1))
+    plt.legend()
+
+    # Organize directory and save the figure
+    stat_directory = organize_directory(output_directory, player_name, 'career', 'rebounds')
+    save_path = os.path.join(stat_directory, f'{player_name}_career_regular_season_rebounds_histogram.png')
+    plt.savefig(save_path)
+
+    # Display the plot
+    plt.show()
+
+    # Create a histogram for career playoff rebounds
+    plt.figure(figsize=(12, 6))
+    plt.hist(career_playoff_data['REB'], bins=np.arange(min(career_playoff_data['REB']), max(career_playoff_data['REB']) + 2) - 0.5, color='green', alpha=0.7, rwidth=0.8)
+    add_mean_with_std(career_playoff_data['REB'], 'purple', 'Career Playoffs', 'Playoffs')
+    plt.title('Damian Lillard Career Playoff Game Log Rebounds Histogram')
+    plt.xlabel('Rebounds')
+    plt.ylabel('Frequency')
+    plt.xticks(np.arange(0, max(career_playoff_data['REB']) + 1, 1))
+    plt.legend()
+
+    # Organize directory and save the figure
+    stat_directory = organize_directory(output_directory, player_name, 'career', 'rebounds')
+    save_path = os.path.join(stat_directory, f'{player_name}_career_playoffs_rebounds_histogram.png')
+    plt.savefig(save_path)
+
+    # Display the plot
+    plt.show()
+
+    # Create a combined histogram for career with playoffs bars above regular season bars
+    plt.figure(figsize=(12, 6))
+    plt.hist([career_regular_season_data['REB'], career_playoff_data['REB']], bins=np.arange(min(min(career_regular_season_data['REB']), min(career_playoff_data['REB'])), max(max(career_regular_season_data['REB']), max(career_playoff_data['REB'])) + 2) - 0.5,
+            color=['blue', 'green'], alpha=0.7, rwidth=0.8, label=['Career Regular Season', 'Career Playoffs'], stacked=True)
+    add_mean_with_std(career_regular_season_data['REB'], 'red', 'Career Regular Season', 'Regular Season')
+    add_mean_with_std(career_playoff_data['REB'], 'purple', 'Career Playoffs', 'Playoffs')
+    plt.title('Damian Lillard Career Game Log Rebounds Histogram (Combined)')
+    plt.xlabel('Rebounds')
+    plt.ylabel('Frequency')
+    plt.xticks(np.arange(0, max(max(career_regular_season_data['REB']), max(career_playoff_data['REB'])) + 1, 1))
+    plt.legend()
+
+    # Organize directory and save the figure
+    stat_directory = organize_directory(output_directory, player_name, 'career', 'rebounds')
+    save_path = os.path.join(stat_directory, f'{player_name}_career_combined_rebounds_histogram.png')
+    plt.savefig(save_path)
+
+    # Display the plot
+    plt.show()
+
+except Exception as e:
+    print(f'Error processing career data: {e}')
